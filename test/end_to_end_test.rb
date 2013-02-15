@@ -1,5 +1,4 @@
 require 'test/unit'
-require 'debugger'
 require 'gearman'
 require 'support/system'
 
@@ -10,6 +9,7 @@ class EndToEndTest < Test::Unit::TestCase
     @factory = Gearman::Factory.new(@system)
     @system.start
     @ability = 'test'
+    @jobs_waited_for = 0
   end
 
   def test_implicit_return
@@ -61,6 +61,8 @@ class EndToEndTest < Test::Unit::TestCase
     yield
     
     task_set.wait(5)
+
+    @jobs_waited_for += 1
   end
 
   def assert_worker_did_not_fail
@@ -75,8 +77,13 @@ class EndToEndTest < Test::Unit::TestCase
     assert_equal(expected, @worker_success)
   end
 
+  def assert_we_at_least_tried
+    assert_equal(1, @jobs_waited_for)
+  end
+
   def teardown
     @system.stop
+    assert_we_at_least_tried
   end
 
 end
