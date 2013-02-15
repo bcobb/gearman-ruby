@@ -38,23 +38,12 @@ class Worker
     ##
     # Create a new ability.
     #
-    # @param block    code to run
     # @param timeout  server gives up on us after this many seconds
-    def initialize(block, timeout=nil)
-      @block = block
+    def initialize(timeout=nil)
       @timeout = timeout
     end
     attr_reader :timeout
 
-    ##
-    # Run the block of code.
-    #
-    # @param data  data passed to us by a client
-    # @param job   interface to report job information to the server
-    def run(data, job)
-      @block.call(data, job)
-    end
-  
   end
 
   # = Job
@@ -245,7 +234,14 @@ class Worker
   # @param timeout  the server will give up on us if we don't finish
   #                 a task in this many seconds
   def add_ability(func, timeout=nil, &f)
-    @abilities[func] = Ability.new(f, timeout)
+    ability_module = Module.new do
+      define_method(:run, &f)
+    end
+
+    ability = Ability.new(timeout)
+    ability.extend(ability_module)
+    @abilities[func] = ability
+
     @sockets.values.each {|s| announce_ability(s, func, timeout) }
   end
 
