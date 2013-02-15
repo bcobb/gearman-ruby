@@ -1,23 +1,33 @@
 require 'gearman'
+require 'timeout'
 
 module Gearman
 
   class System
+
+    class ReadTimeout < StandardError ; end
 
     attr_reader :io, :servers
 
     def initialize
       @io = nil
       @servers = ['localhost:4730']
-      @thread = nil
     end
 
     def start
       @io = IO.popen "gearmand"
-      @thread = Thread.new do
-        loop do
-          Timeout.timeout(1) { @io.read } rescue nil
-	end
+
+      read
+    end
+
+    def read
+      begin
+        Timeout.timeout(1, ReadTimeout) do
+          to_read, _ = IO::select([@io])
+          to_read.each(&:read)
+        end
+      rescue ReadTimeout
+        nil
       end
     end
 
@@ -25,7 +35,6 @@ module Gearman
       if started?
         Process.kill('KILL', @io.pid)
         @io.close
-	@thread.kill
       end
     end
 
